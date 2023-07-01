@@ -95,57 +95,139 @@ function parseInput(input: string): Role | undefined {
   }
 }
 
+function validate(color: string, role: Role, shapes: { [key: string]: boolean }): string {
+  const clickedShapes = Object.keys(shapes)
+    .filter((k) => !shapes[k])
+    .sort()
+    .join(',')
+  console.log(color, clickedShapes)
+  let match = false
+  switch (role) {
+    case Role.StarBlueYellow:
+      if (color.includes('blue')) {
+        match = clickedShapes === 'star0,star3,star6'
+      } else {
+        match = clickedShapes === 'star2,star5,star8'
+      }
+      break
+    case Role.StarRedYellow:
+      if (color.includes('red')) {
+        match = clickedShapes === 'star0,star3,star6'
+      } else {
+        match = clickedShapes === 'star1,star4,star7'
+      }
+      break
+    case Role.CubeTop:
+      match = clickedShapes === 'cube0,cube1,cube8'
+      break
+    case Role.CubeRight:
+      match = clickedShapes === 'cube5,cube6,cube7'
+      break
+    case Role.CubeLeft:
+      match = clickedShapes === 'cube2,cube3,cube4'
+      break
+    case Role.DiamondLeft:
+      match = clickedShapes === 'diamond5,diamond6,diamond7'
+      break
+    case Role.DiamondRight:
+      match = clickedShapes === 'diamond2,diamond3,diamond4'
+      break
+    case Role.DiamondBottom:
+      match = clickedShapes === 'diamond0,diamond1,diamond8'
+      break
+  }
+  return match ? 'Correct!' : 'Wrong!'
+}
+
 function Brel() {
   const [input, setInput] = useState('')
-  const [state, setState] = useState<'init' | 'started'>('init')
+  const [state, setState] = useState<'init' | 'started' | 'finished'>('init')
   const [role, setRole] = useState<Role | undefined>(undefined)
   const [color, setColor] = useState<string | undefined>(undefined)
+  const [time, setTime] = useState(10000.0)
+  const [result, setResult] = useState('')
   const [shapes, setShapes] = useState<{ [key: string]: boolean }>({
-    star0: true,
-    star1: true,
-    star2: true,
-    star3: true,
-    star4: true,
-    star5: true,
-    star6: true,
-    star7: true,
-    star8: true,
-    cube0: true,
-    cube1: true,
-    cube2: true,
-    cube3: true,
-    cube4: true,
-    cube5: true,
-    cube6: true,
-    cube7: true,
-    cube8: true,
-    diamond0: true,
-    diamond1: true,
-    diamond2: true,
-    diamond3: true,
-    diamond4: true,
-    diamond5: true,
-    diamond6: true,
-    diamond7: true,
-    diamond8: true,
+    star0: false,
+    star1: false,
+    star2: false,
+    star3: false,
+    star4: false,
+    star5: false,
+    star6: false,
+    star7: false,
+    star8: false,
+    cube0: false,
+    cube1: false,
+    cube2: false,
+    cube3: false,
+    cube4: false,
+    cube5: false,
+    cube6: false,
+    cube7: false,
+    cube8: false,
+    diamond0: false,
+    diamond1: false,
+    diamond2: false,
+    diamond3: false,
+    diamond4: false,
+    diamond5: false,
+    diamond6: false,
+    diamond7: false,
+    diamond8: false,
   })
   useEffect(() => {
     if (state === 'init') {
-      setInput('')
       setShapes(
         Object.keys(shapes).reduce((res: { [k: string]: boolean }, k) => {
-          res[k] = true
+          res[k] = false
           return res
         }, {}),
       )
       setColor(undefined)
+      setTime(10000)
+      setResult('')
     } else if (state === 'started') {
-      setRole(parseInput(input))
+      const role = parseInput(input)
+      setRole(role)
       const idx = Math.floor(Math.random() * 3)
       setColor(AuraColors[idx])
     }
   }, [input, state])
 
+  useEffect(() => {
+    let interval = 0
+    if (state === 'started') {
+      interval = setInterval(() => {
+        setTime((time: number) => time - 100)
+      }, 100)
+    } else {
+      clearInterval(interval)
+    }
+    return () => clearInterval(interval)
+  }, [state, time])
+
+  useEffect(() => {
+    if (time === 9000) {
+      for (let i = 0; i < 9; i++) {
+        setShapes((s) => ({ ...s, [`star${i}`]: true }))
+      }
+    } else if (time === 7000) {
+      for (let i = 0; i < 9; i++) {
+        setShapes((s) => ({ ...s, [`cube${i}`]: true }))
+      }
+    } else if (time === 5000) {
+      for (let i = 0; i < 9; i++) {
+        setShapes((s) => ({ ...s, [`diamond${i}`]: true }))
+      }
+    } else if (time === 0) {
+      setState('finished')
+      if (role !== undefined && color !== undefined) {
+        setResult(validate(color, role, shapes))
+      } else {
+        setResult('you did not select a role')
+      }
+    }
+  }, [time, role, shapes, color])
   return (
     <div className="App">
       <header className="App-header">
@@ -155,7 +237,7 @@ function Brel() {
             value={input}
             disabled={state !== 'init'}
             onInput={(v) => {
-              setInput(v.target.value)
+              setInput((v.target as any).value)
             }}
           />
         </div>
@@ -178,6 +260,8 @@ function Brel() {
             </button>
           )}
         </div>
+        <div>Time: {time / 1000.0}</div>
+
         <div>
           <svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
             {color ? (
@@ -234,6 +318,7 @@ function Brel() {
             })}
           </svg>
         </div>
+        <div>{result}</div>
       </header>
     </div>
   )
