@@ -1,6 +1,6 @@
 import './App.css'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import brelBlue from './brel3_blue.png'
 import brelRed from './brel3_red.png'
@@ -95,48 +95,39 @@ function parseInput(input: string): Role | undefined {
   }
 }
 
-function validate(color: string, role: Role, shapes: { [key: string]: boolean }): string {
-  const clickedShapes = Object.keys(shapes)
-    .filter((k) => !shapes[k])
-    .sort()
-    .join(',')
-  console.log(color, clickedShapes)
-  let match = false
+function getCorrectAnswer(color: string, role: Role): string[] {
   switch (role) {
     case Role.StarBlueYellow:
       if (color.includes('blue')) {
-        match = clickedShapes === 'star0,star3,star6'
+        return ['star0', 'star3', 'star6']
       } else {
-        match = clickedShapes === 'star2,star5,star8'
+        return ['star2', 'star5', 'star8']
       }
-      break
     case Role.StarRedYellow:
       if (color.includes('red')) {
-        match = clickedShapes === 'star0,star3,star6'
+        return ['star0', 'star3', 'star6']
       } else {
-        match = clickedShapes === 'star1,star4,star7'
+        return ['star1', 'star4', 'star7']
       }
-      break
     case Role.CubeTop:
-      match = clickedShapes === 'cube0,cube1,cube8'
-      break
+      return ['cube0', 'cube1', 'cube8']
     case Role.CubeRight:
-      match = clickedShapes === 'cube5,cube6,cube7'
-      break
+      return ['cube5', 'cube6', 'cube7']
     case Role.CubeLeft:
-      match = clickedShapes === 'cube2,cube3,cube4'
-      break
+      return ['cube2', 'cube3', 'cube4']
     case Role.DiamondLeft:
-      match = clickedShapes === 'diamond5,diamond6,diamond7'
-      break
+      return ['diamond5', 'diamond6', 'diamond7']
     case Role.DiamondRight:
-      match = clickedShapes === 'diamond2,diamond3,diamond4'
-      break
+      return ['diamond2', 'diamond3', 'diamond4']
     case Role.DiamondBottom:
-      match = clickedShapes === 'diamond0,diamond1,diamond8'
-      break
+      return ['diamond0', 'diamond1', 'diamond8']
   }
-  return match ? 'Correct!' : 'Wrong!'
+}
+
+function validate(color: string, role: Role, answers: string[]): string {
+  const answer = getCorrectAnswer(color, role)
+  const correct = answer.join(',') === answers.sort().join(',')
+  return correct ? 'Correct!' : 'Wrong!'
 }
 
 function Brel() {
@@ -146,6 +137,7 @@ function Brel() {
   const [color, setColor] = useState<string | undefined>(undefined)
   const [time, setTime] = useState(10000.0)
   const [result, setResult] = useState('')
+  const [answers, setAnswers] = useState<string[]>([])
   const [shapes, setShapes] = useState<{ [key: string]: boolean }>({
     star0: false,
     star1: false,
@@ -186,13 +178,14 @@ function Brel() {
       setColor(undefined)
       setTime(10000)
       setResult('')
+      setAnswers([])
     } else if (state === 'started') {
       const role = parseInput(input)
       setRole(role)
       const idx = Math.floor(Math.random() * 3)
       setColor(AuraColors[idx])
     }
-  }, [input, state])
+  }, [input, state, setShapes, setColor, setTime, setResult, setRole])
 
   useEffect(() => {
     let interval = 0
@@ -219,18 +212,37 @@ function Brel() {
       for (let i = 0; i < 9; i++) {
         setShapes((s) => ({ ...s, [`diamond${i}`]: true }))
       }
-    } else if (time === 0) {
+    }
+  }, [time, role, color, setResult, setShapes, setState])
+
+  useEffect(() => {
+    if (time === 0) {
       setState('finished')
       if (role !== undefined && color !== undefined) {
-        setResult(validate(color, role, shapes))
+        setResult(validate(color, role, answers))
       } else {
         setResult('you did not select a role')
       }
     }
-  }, [time, role, shapes, color])
+  }, [time, shapes, color, role, setResult, answers])
+  useEffect(() => {
+    if (color && role !== undefined) {
+      const r = Math.floor(Math.random() * 8)
+      if (r !== role) {
+        const answer = getCorrectAnswer(color, r)
+        const c = answer.filter((s) => shapes[s])
+        if (c.length > 0 && Math.random() > time / 10000) {
+          const shape = c[Math.floor(Math.random() * c.length)]
+          setShapes({ ...shapes, [shape]: false })
+        }
+      }
+    }
+  }, [time, role, shapes, color, setShapes])
+
   return (
     <div className="App">
       <header className="App-header">
+        <div>Enter pos:</div>
         <div>
           <input
             type="text"
@@ -263,7 +275,7 @@ function Brel() {
         <div>Time: {time / 1000.0}</div>
 
         <div>
-          <svg width="500" height="500" xmlns="http://www.w3.org/2000/svg">
+          <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
             {color ? (
               <image href={color} transform="translate(170,170) " width={100} />
             ) : null}
@@ -278,6 +290,7 @@ function Brel() {
                   color="#554422"
                   onClick={() => {
                     if (state === 'started') {
+                      setAnswers([...answers, idx])
                       setShapes({ ...shapes, [idx]: false })
                     }
                   }}
@@ -294,6 +307,7 @@ function Brel() {
                   color="#224455"
                   onClick={() => {
                     if (state === 'started') {
+                      setAnswers([...answers, idx])
                       setShapes({ ...shapes, [idx]: false })
                     }
                   }}
@@ -310,6 +324,7 @@ function Brel() {
                   y={-Math.sin(((angle - 90) / 180) * Math.PI) * 90 + 200}
                   onClick={() => {
                     if (state === 'started') {
+                      setAnswers([...answers, idx])
                       setShapes({ ...shapes, [idx]: false })
                     }
                   }}
